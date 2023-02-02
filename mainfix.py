@@ -11,18 +11,21 @@ import pandas as pd
 from time import sleep
 from loguru import logger
 
-# 1.22增加了日志功能，记录用户使用的指令和获取的订阅日志
+# 日志功能 记录用户使用的指令和获取的订阅日志
 logger.add('bot.log')
 
 # 定义bot管理员的telegram userid
-admin_id = ['adminid']
+admin_id = ['5965795367' ,'5505027523', '5381972909']
 
 # 定义bot
-bot = telebot.TeleBot('bot token')
+bot = telebot.TeleBot('6079843734:AAHG36G3AjYugqvfSpv6-KlC0vKCnbPnSZE')
 
 # 定义数据库
 conn = sqlite3.connect('My_sub.db', check_same_thread=False)
 c = conn.cursor()
+
+# 定义自我介绍内容
+intro = '本bot为@C1oudF1are的私人订阅小仓库bot 不对外公开'
 
 # 创建表
 c.execute('''CREATE TABLE IF NOT EXISTS My_sub(URL text, comment text)''')
@@ -37,7 +40,8 @@ def botinit():
             telebot.types.BotCommand("add", "添加订阅"),
             telebot.types.BotCommand("del", "删除订阅"),
             telebot.types.BotCommand("search", "查找订阅"),
-            telebot.types.BotCommand("update", "更新订阅")
+            telebot.types.BotCommand("update", "更新订阅"),
+            telebot.types.BotCommand("subinfo", "订阅信息")
         ],
     )
     print('[初始化完成]')
@@ -63,6 +67,11 @@ def handle_command(message):
         # bot.send_message(message.chat.id, "你没有权限操作，别瞎搞！")
         bot.reply_to(message, "[WRONG][你没有操作权限]")
 
+# 自我介绍
+@bot.message_handler(commands=['start'],func = lambda message:message.chat.type == "private")
+def start(message):
+    bot.send_message(message.chat.id, intro, parse_mode = 'Markdown')
+    
 
 # 添加数据
 def add_sub(message):
@@ -190,6 +199,50 @@ def StrOfSize(size):
         level = -1
     return ('{}.{:>03d} {}'.format(integer, remainder, units[level]))
 
+def subinfo(url):
+    headers = {'User-Agent': 'ClashforWindows/0.18.1'}
+    try:
+        message_raw = url
+        final_output = ''
+        url_list = re.findall("https?://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]",message_raw)
+        for url in url_list:
+            try:
+                res = requests.get(url, headers=headers, timeout=5)
+            except:
+                final_output = final_output +'订阅链接：`' + url + '`\n连接错误' + '\n\n'
+                continue
+            if res.status_code == 200:
+                try:
+                    info = res.headers['subscription-userinfo']
+                    info_num = re.findall(r'\d+', info)
+                    time_now = int(time.time())
+                    output_text_head = '订阅链接：`' + url + '`\n已用上行：`' + StrOfSize(int(info_num[0])) + '`\n已用下行：`' + StrOfSize(int(info_num[1])) + '`\n剩余：`' + StrOfSize(int(info_num[2]) - int(info_num[1]) - int(info_num[0])) + '`\n总共：`' + StrOfSize(int(info_num[2]))
+                    if len(info_num) == 4:
+                        timeArray = time.localtime(int(info_num[3]) + 28800)
+                        dateTime = time.strftime("%Y-%m-%d", timeArray)
+                        if time_now <= int(info_num[3]):
+                            lasttime = int(info_num[3]) - time_now
+                            output_text = output_text_head + '`\n过期时间：`' + dateTime + '`\n剩余时间：`' + sec_to_data(lasttime) + '`'
+                        elif time_now > int(info_num[3]):
+                            output_text = output_text_head + '`\n此订阅已于`' + dateTime + '`过期！'
+                    else:
+                        output_text = output_text_head + '`\n到期时间：`没有说明捏`'
+                except:
+                    output_text = '订阅链接：`' + url + '`\n无流量信息'
+            else:
+                output_text = '订阅链接：`' + url + '`\n无法访问\n'
+            final_output = final_output + output_text + '\n\n'
+        return (final_output)
+    except:
+        return ('参数错误')
+
+@bot.message_handler(commands=['subinfo'])
+def get_subinfo(message):
+    info_text = subinfo(message.text)
+    try:
+        bot.reply_to(message, info_text,parse_mode='Markdown')
+    except:
+        return
 
 # 按钮点击事件
 @bot.callback_query_handler(func=lambda call: True)
@@ -198,15 +251,15 @@ def callback_inline(call):
         if call.data == 'close':
             bot.delete_message(call.message.chat.id, call.message.message_id)
         else:
-            row_num = call.data
-            c.execute("SELECT rowid,URL,comment FROM My_sub WHERE rowid=?", (row_num,))
-            result = c.fetchone()
-            
             try:
+                row_num = call.data
+                c.execute("SELECT rowid,URL,comment FROM My_sub WHERE rowid=?", (row_num,))
+                result = c.fetchone()
+                
                 headers = {'User-Agent': 'ClashforWindows/0.18.1'}
                 output_test = ''
                 try:
-                    res = requests.get(result[1], headers=headers, timeout=5)  # 设置5秒超时防止卡死
+                    res = requests.get(result[1], headers=headers, timeout=5)
                 except:
                     output_text = '连接错误'
                 if res.status_code == 200:
@@ -214,27 +267,23 @@ def callback_inline(call):
                         info = res.headers['subscription-userinfo']
                         info_num = re.findall(r'\d+', info)
                         time_now = int(time.time())
-                        output_text_head = '上行：' + StrOfSize(
-                            int(info_num[0])) + '\n下行：' + StrOfSize(int(info_num[1])) + '\n剩余：' + StrOfSize(
-                            int(info_num[2]) - int(info_num[1]) - int(info_num[0])) + '\n总共：' + StrOfSize(
-                            int(info_num[2]))
+                        output_text_head = '上行：`' + StrOfSize(int(info_num[0])) + '`\n下行：`' + StrOfSize(int(info_num[1])) + '`\n剩余：`' + StrOfSize(int(info_num[2]) - int(info_num[1]) - int(info_num[0])) + '`\n总共：`' + StrOfSize(int(info_num[2])) + '`'
                         if len(info_num) == 4:
                             timeArray = time.localtime(int(info_num[3]) + 28800)
                             dateTime = time.strftime("%Y-%m-%d", timeArray)
                             if time_now <= int(info_num[3]):
                                 lasttime = int(info_num[3]) - time_now
-                                output_text = output_text_head + '\n过期时间：' + dateTime + '\n剩余时间：' + sec_to_data(
-                                    lasttime)
+                                output_text = output_text_head + '\n过期时间：`' + dateTime + '`\n剩余时间：`' + sec_to_data(lasttime) + '`'
                             elif time_now > int(info_num[3]):
-                                output_text = output_text_head + '\n此订阅已于 ' + dateTime + '过期'
+                                output_text = output_text_head + '\n此订阅已于 `' + dateTime + '`过期'
                         else:
-                            output_text = output_text_head + '过期时间：没有说明'
+                            output_text = output_text_head + '\n过期时间：`没有说明`'
                     except:
-                        output_text = '无流量信息'
+                        output_text = '`无流量信息`'
                 else:
-                    output_text = '无法访问'
-                
-                bot.send_message(call.message.chat.id, '编号 {}\n订阅 {}\n说明 {}\n\n{}'.format(result[0], result[1], result[2], output_text))
+                    output_text = '`无法访问`'
+                    
+                bot.send_message(call.message.chat.id, '编号 `{}`\n订阅 `{}`\n说明 `{}`\n\n{}'.format(result[0], result[1], result[2], output_text),parse_mode='Markdown')
                 logger.debug(f"用户{call.from_user.id}从BOT获取了{result}")
             except:
                 bot.send_message(call.message.chat.id, "[WARNING][该订阅已被管理员删除]")
