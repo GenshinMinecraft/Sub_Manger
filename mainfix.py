@@ -15,10 +15,10 @@ from loguru import logger
 logger.add('bot.log')
 
 # 定义bot管理员的telegram userid
-admin_id = ['5965795367' ,'5505027523', '5381972909']
+admin_id = ['admin id' ,'admin id', 'admin id']
 
 # 定义bot
-bot = telebot.TeleBot('6079843734:AAHG36G3AjYugqvfSpv6-KlC0vKCnbPnSZE')
+bot = telebot.TeleBot('bot token')
 
 # 定义数据库
 conn = sqlite3.connect('My_sub.db', check_same_thread=False)
