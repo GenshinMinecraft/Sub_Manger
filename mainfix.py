@@ -15,10 +15,10 @@ from loguru import logger
 logger.add('bot.log')
 
 # 定义bot管理员的telegram userid
-admin_id = ['admin id' ,'admin id', 'admin id']
+admin_id = ['5965795367' ,'5505027523', '5381972909']
 
 # 定义bot
-bot = telebot.TeleBot('bot token')
+bot = telebot.TeleBot('6079843734:AAHG36G3AjYugqvfSpv6-KlC0vKCnbPnSZE')
 
 # 定义数据库
 conn = sqlite3.connect('My_sub.db', check_same_thread=False)
@@ -224,7 +224,7 @@ def callback_inline(call):
                             if time_now <= int(info_num[3]):
                                 lasttime = int(info_num[3]) - time_now
                                 output_text = output_text_head + '\n过期时间：' + dateTime + '\n剩余时间：' + sec_to_data(
-                                    lasttime) + '`'
+                                    lasttime)
                             elif time_now > int(info_num[3]):
                                 output_text = output_text_head + '\n此订阅已于 ' + dateTime + '过期'
                         else:
